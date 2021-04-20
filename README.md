@@ -9,3 +9,6 @@ file needed to run the code.
 All of the Arduino Libraries necessary should be installed already from completing
 Lab 1 through Lab 3.
 
+Easiest way to work and access it is through GitHub Desktop
+
+
