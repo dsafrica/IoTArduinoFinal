@@ -1,5 +1,6 @@
 #include <ArduinoBLE.h>
 #include <Arduino_HTS221.h>
+#include <Arduino_ADPS9960.h>
 #include "TimeoutTimer.h"
 #define BUFSIZE 20
 
@@ -94,7 +95,6 @@ void loop()
           //increment code here
         }
         
-       // interval = txChar.value().toInt()*1000;
       }
 
       /* 
