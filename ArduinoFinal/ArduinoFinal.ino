@@ -1,6 +1,5 @@
 #include <ArduinoBLE.h>
 #include <Arduino_HTS221.h>
-#include <Arduino_ADPS9960.h>
 #include "TimeoutTimer.h"
 #define BUFSIZE 20
 
@@ -17,6 +16,9 @@ BLEStringCharacteristic rxChar("6E400003-B5A3-F393-E0A9-E50E24DCCA9E", BLERead |
  */
 BLEService essService("181A");
 BLEShortCharacteristic tempChar("2A6E", BLERead | BLENotify );
+int onOffPin = 5;
+int incPin = 4;
+int decPin = 3;
 
 void setup() 
 {
@@ -52,49 +54,91 @@ void setup()
   // Start advertising our new service.
   BLE.advertise();
   Serial.println("Bluetooth device (" + deviceAddress + ") active, waiting for connections...");
+  pinMode(decPin, INPUT);    // declare pushbutton as input
+  pinMode(incPin, INPUT);
+  pinMode(onOffPin, INPUT);
 }
 
 void loop() 
 {
   // Wait for a BLE central device.
   BLEDevice central = BLE.central();
-  int interval = 1000; //Initialize the interval to be 1 sec (same as pi)
-  int newState = 0; //Initialize variable to hold the new state (on/off, increment or decrement)
+  String newState = ""; //Initialize variable to hold the new state (on/off, increment or decrement)
+  int currentState = 0;//0 for off, 1 for on
+  int onValue = 0;
+  bool lastDown = false;
+  int lastState = LOW;
+  unsigned long lastDebounceTime = 0;
+  unsigned long debounceDelay = 50;
+  
+  int intensity = 0;//Intensity on a scale of 1-10 for dimness of the lights
   // If a central device is connected to the peripheral...
   if ( central )
   {
     // Print the central's BT address.
     Serial.print("Connected to central: ");
     Serial.println( central.address() );
-
+    
     // While the central device is connected...
     while( central.connected() )
     {
-      // Get input from user, send to central
-      char inputs[BUFSIZE+1];
-      if ( getUserInput( inputs, BUFSIZE ) )
-      {
-        Serial.print("[Send] ");
-        Serial.println( inputs );
-        rxChar.writeValue( inputs );
+      
+      int countOn = 0;
+      int countDec = 0;
+      int countInc = 0;
+      for(int i=0; i<20; i++){
+        if(digitalRead(onOffPin)==LOW){
+          countOn++;
+        }
+        else if(digitalRead(incPin)==LOW){
+          countInc++;
+        }
+        else if(digitalRead(decPin)==LOW){
+          countDec++;
+        }
+        delay(50);
       }
+      bool down = (countOn>10 || countInc>10 || countDec>10);
+      if(down && !lastDown){
+        if(countOn>15){
+          Serial.println("ON/OFF Button Pressed");
+        }
+        if(countInc>15){
+          Serial.println("Increment Button Pressed");
+        }
+        if(countDec>15){
+          Serial.println("Decrement Button Pressed");
+        }
+      }
+      lastDown = down;
 
+      
       // Receive data from central (if written is true)
       if ( txChar.written() )
       {
         newState = txChar.value();
-        Serial.print("[RCVD] State from Central: );
-        Serial.println( newState );
-        if(newState == -1){
-          //decrement code here
+        Serial.print("[RCVD] State from Central: "+newState);
+        Serial.println();
+        if(newState.equals("s0")){
+          if(currentState == 0){//If the light was off
+            currentState = 1; //Light is now on
+          }
+          else if(currentState == 1){//if the light was on
+            currentState = 0; //Light is now off
+          }
         }
-        else if(newState == 0){
-          //change state to off/on
+        else if(newState.equals("s1")){
+          //increment
+          if(intensity < 10){
+            intensity++;
+          }
         }
-        else if(newState == 1){
-          //increment code here
+        else if(newState.equals("s2")){
+          //decrement
+          if(intensity > 0){
+            intensity--;
+          }
         }
-        
       }
 
       /* 
@@ -105,32 +149,14 @@ void loop()
       */
 
 
-      //GET LIGHT SENSOR DATA HERE
-
-      
-      //Get temperature from Arduino sensor (per Lab 1)
-      float temp = HTS.readTemperature();
-      
-      Serial.print("Temp: ");
-      Serial.println(temp);
-
-      // Cast to desired format; multiply by 100 to keep desired precision.
-      short shortTemp = (short) (temp * 100);
-
-      // Send data to centeral for temperature characteristic.
-      tempChar.writeValue( shortTemp );
-
-      // TODO: Should get this Interval from Firebase via Pi via UART
-      delay(interval);
-
-      //MAYBE MAKE THIS INTERVAL SHORTER/LONGER???
+      delay(1);
     }
-    
     Serial.print("Disconnected from central: ");
     Serial.println( central.address() );
-    
   }
 }
+
+
 
 /**************************************************************************/
 /*!
