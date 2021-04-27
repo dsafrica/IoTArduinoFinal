@@ -66,10 +66,13 @@ void loop()
   String newState = ""; //Initialize variable to hold the new state (on/off, increment or decrement)
   int currentState = 0;//0 for off, 1 for on
   int onValue = 0;
-  bool lastDown = false;
   int lastState = LOW;
   unsigned long lastDebounceTime = 0;
   unsigned long debounceDelay = 50;
+  bool toggleWasDown = false;
+  bool incWasDown = false;
+  bool decWasDown = false;
+  
   
   int intensity = 0;//Intensity on a scale of 1-10 for dimness of the lights
   // If a central device is connected to the peripheral...
@@ -83,34 +86,23 @@ void loop()
     while( central.connected() )
     {
       
-      int countOn = 0;
-      int countDec = 0;
-      int countInc = 0;
-      for(int i=0; i<20; i++){
-        if(digitalRead(onOffPin)==LOW){
-          countOn++;
-        }
-        else if(digitalRead(incPin)==LOW){
-          countInc++;
-        }
-        else if(digitalRead(decPin)==LOW){
-          countDec++;
-        }
-        delay(50);
+      bool toggleDown = readButton(onOffPin);
+      bool incDown = readButton(incPin);
+      bool decDown = readButton(decPin);
+ 
+      if(toggleDown && !toggleWasDown){
+        Serial.println("ON/OFF Button Pressed");
       }
-      bool down = (countOn>10 || countInc>10 || countDec>10);
-      if(down && !lastDown){
-        if(countOn>15){
-          Serial.println("ON/OFF Button Pressed");
-        }
-        if(countInc>15){
-          Serial.println("Increment Button Pressed");
-        }
-        if(countDec>15){
-          Serial.println("Decrement Button Pressed");
-        }
+      if(incDown && !incWasDown){
+        Serial.println("Increment Button Pressed");
       }
-      lastDown = down;
+      if(decDown && !decWasDown){
+        Serial.println("Decrement Button Pressed");
+      }
+      
+      toggleWasDown = toggleDown;
+      incWasDown = incDown;
+      decWasDown = decDown;
 
       
       // Receive data from central (if written is true)
@@ -155,7 +147,14 @@ void loop()
     Serial.println( central.address() );
   }
 }
-
+int filterReadSize = 100;
+bool readButton(int pin){
+  int count = 0;
+  for(int i=0; i<filterReadSize; i++){
+    count += digitalRead(pin);
+  }
+  return count > filterReadSize/2.0;
+}
 
 
 /**************************************************************************/
