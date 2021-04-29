@@ -133,6 +133,7 @@ void loop()
             currentState = "s0"; //Light is now off
             intensity = 0;
           }
+          sendToggle(currentState);
         }
         else if(newState.equals("s1")){
           //increment
