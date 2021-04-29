@@ -64,7 +64,7 @@ void loop()
   // Wait for a BLE central device.
   BLEDevice central = BLE.central();
   String newState = ""; //Initialize variable to hold the new state (on/off, increment or decrement)
-  int currentState = 0;//0 for off, 1 for on
+  String currentState = "s0";//0 for off, 1 for on
   bool toggleWasDown = false;
   bool incWasDown = false;
   bool decWasDown = false;
@@ -87,13 +87,13 @@ void loop()
  
       if(toggleDown && !toggleWasDown){
         Serial.println("ON/OFF Button Pressed");
-        if(currentState == 0){
-          currentState = 1;
+        if(currentState == "s0"){
+          currentState = "s1";
         }
         else{
-          currentState = 0;
+          currentState = "s0";
         }
-        itoa(currentState, sendArray, 10);
+        currentState.toCharArray(sendArray,BUFSIZE);
         Serial.println(sendArray);
         rxChar.writeValue(sendArray);
       }
@@ -108,8 +108,8 @@ void loop()
         if(intensity>0){
           intensity--;
           if(intensity == 0){
-            currentState = 0;
-            itoa(currentState, sendArray, 10);
+            currentState = "s0";
+            currentState.toCharArray(sendArray,BUFSIZE);
             Serial.println(sendArray);
             rxChar.writeValue(sendArray);
           }
@@ -126,12 +126,19 @@ void loop()
         newState = txChar.value();
         Serial.print("[RCVD] State from Central: "+newState);
         Serial.println();
-        if(newState.equals("s0")){
-          if(currentState == 0){//If the light was off
-            currentState = 1; //Light is now on
+        if(newState.equals("p")){
+          String s = String(intensity);
+          String intensityAsString = "p" + s;
+          intensityAsString.toCharArray(sendArray,BUFSIZE);
+          Serial.println(sendArray);
+          rxChar.writeValue(sendArray);
+        }
+        else if(newState.equals("s0")){
+          if(currentState == "s0"){//If the light was off
+            currentState = "s1"; //Light is now on
           }
-          else if(currentState == 1){//if the light was on
-            currentState = 0; //Light is now off
+          else if(currentState == "s1"){//if the light was on
+            currentState = "s0"; //Light is now off
           }
         }
         else if(newState.equals("s1")){
@@ -139,18 +146,20 @@ void loop()
           if(intensity < 10){
             intensity++;
           }
+          Serial.println("New Intensity: "+intensity);
         }
         else if(newState.equals("s2")){
           //decrement
           if(intensity > 0){
             intensity--;
             if(intensity == 0){
-              currentState = 0;
-              itoa(currentState, sendArray, 10);
+              currentState = "s0";
+              currentState.toCharArray(sendArray,BUFSIZE);
               rxChar.writeValue(sendArray);
               Serial.println(sendArray);
             }
           }
+          Serial.println("New Intensity: "+intensity);
         }
       }
     }
