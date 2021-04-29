@@ -83,7 +83,6 @@ void loop()
       bool toggleDown = readButton(onOffPin);
       bool incDown = readButton(incPin);
       bool decDown = readButton(decPin);
-      char sendArray[BUFSIZE];
  
       if(toggleDown && !toggleWasDown){
         Serial.println("ON/OFF Button Pressed");
@@ -92,10 +91,9 @@ void loop()
         }
         else{
           currentState = "s0";
+          intensity = 0;
         }
-        currentState.toCharArray(sendArray,BUFSIZE);
-        Serial.println(sendArray);
-        rxChar.writeValue(sendArray);
+        sendToggle(currentState);
       }
       if(incDown && !incWasDown){
         Serial.println("Increment Button Pressed");
@@ -109,9 +107,7 @@ void loop()
           intensity--;
           if(intensity == 0){
             currentState = "s0";
-            currentState.toCharArray(sendArray,BUFSIZE);
-            Serial.println(sendArray);
-            rxChar.writeValue(sendArray);
+            sendToggle(currentState);
           }
         }
       }
@@ -124,14 +120,10 @@ void loop()
       if ( txChar.written() )
       {
         newState = txChar.value();
-        Serial.print("[RCVD] State from Central: "+newState);
-        Serial.println();
+        Serial.println("[RCVD] State from Central: "+newState);
+        
         if(newState.equals("p")){
-          String s = String(intensity);
-          String intensityAsString = "p" + s;
-          intensityAsString.toCharArray(sendArray,BUFSIZE);
-          Serial.println(sendArray);
-          rxChar.writeValue(sendArray);
+          sendIntensity(intensity);
         }
         else if(newState.equals("s0")){
           if(currentState == "s0"){//If the light was off
@@ -139,6 +131,7 @@ void loop()
           }
           else if(currentState == "s1"){//if the light was on
             currentState = "s0"; //Light is now off
+            intensity = 0;
           }
         }
         else if(newState.equals("s1")){
@@ -154,9 +147,7 @@ void loop()
             intensity--;
             if(intensity == 0){
               currentState = "s0";
-              currentState.toCharArray(sendArray,BUFSIZE);
-              rxChar.writeValue(sendArray);
-              Serial.println(sendArray);
+              sendToggle(currentState);
             }
           }
           Serial.println("New Intensity: "+intensity);
@@ -167,9 +158,10 @@ void loop()
     Serial.println( central.address() );
   }
 }
-int filterReadSize = 1000;
+
 bool readButton(int pin){
   int count = 0;
+  int filterReadSize = 1000;
   for(int i=0; i<filterReadSize; i++){
     if(digitalRead(pin)==LOW){
       count++;
@@ -179,6 +171,21 @@ bool readButton(int pin){
   return count > filterReadSize-30;
 }
 
+void sendToggle(String value){
+  char sendArray[BUFSIZE];
+  value.toCharArray(sendArray,BUFSIZE);
+  rxChar.writeValue(sendArray);
+  Serial.println(sendArray);
+}
+
+void sendIntensity(int value){
+  char sendArray[BUFSIZE];
+  String s = String(value);
+  String intensityAsString = "p" + s;
+  intensityAsString.toCharArray(sendArray,BUFSIZE);
+  Serial.println(sendArray);
+  rxChar.writeValue(sendArray);
+}
 
 /**************************************************************************/
 /*!
