@@ -65,15 +65,9 @@ void loop()
   BLEDevice central = BLE.central();
   String newState = ""; //Initialize variable to hold the new state (on/off, increment or decrement)
   int currentState = 0;//0 for off, 1 for on
-  int onValue = 0;
-  int lastState = LOW;
-  unsigned long lastDebounceTime = 0;
-  unsigned long debounceDelay = 50;
   bool toggleWasDown = false;
   bool incWasDown = false;
   bool decWasDown = false;
-  
-  
   int intensity = 0;//Intensity on a scale of 1-10 for dimness of the lights
   // If a central device is connected to the peripheral...
   if ( central )
@@ -89,21 +83,42 @@ void loop()
       bool toggleDown = readButton(onOffPin);
       bool incDown = readButton(incPin);
       bool decDown = readButton(decPin);
+      char sendArray[BUFSIZE];
  
       if(toggleDown && !toggleWasDown){
         Serial.println("ON/OFF Button Pressed");
+        if(currentState == 0){
+          currentState = 1;
+        }
+        else{
+          currentState = 0;
+        }
+        itoa(currentState, sendArray, 10);
+        Serial.println(sendArray);
+        rxChar.writeValue(sendArray);
       }
       if(incDown && !incWasDown){
         Serial.println("Increment Button Pressed");
+        if(intensity<10){
+          intensity++;
+        }
       }
       if(decDown && !decWasDown){
         Serial.println("Decrement Button Pressed");
+        if(intensity>0){
+          intensity--;
+          if(intensity == 0){
+            currentState = 0;
+            itoa(currentState, sendArray, 10);
+            Serial.println(sendArray);
+            rxChar.writeValue(sendArray);
+          }
+        }
       }
       
       toggleWasDown = toggleDown;
       incWasDown = incDown;
       decWasDown = decDown;
-
       
       // Receive data from central (if written is true)
       if ( txChar.written() )
@@ -129,31 +144,30 @@ void loop()
           //decrement
           if(intensity > 0){
             intensity--;
+            if(intensity == 0){
+              currentState = 0;
+              itoa(currentState, sendArray, 10);
+              rxChar.writeValue(sendArray);
+              Serial.println(sendArray);
+            }
           }
         }
       }
-
-      /* 
-       *  Emit temperature per ESS' tempChar.
-       *  Per the characteristic spec, temp should be in Celsius 
-       *  with a resolution of 0.01 degrees. It should also 
-       *  be carried within short.
-      */
-
-
-      delay(1);
     }
     Serial.print("Disconnected from central: ");
     Serial.println( central.address() );
   }
 }
-int filterReadSize = 100;
+int filterReadSize = 1000;
 bool readButton(int pin){
   int count = 0;
   for(int i=0; i<filterReadSize; i++){
-    count += digitalRead(pin);
+    if(digitalRead(pin)==LOW){
+      count++;
+    }
+    delayMicroseconds(1);
   }
-  return count > filterReadSize/2.0;
+  return count > filterReadSize-30;
 }
 
 
