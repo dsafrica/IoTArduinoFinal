@@ -2,6 +2,7 @@
 #include <Arduino_HTS221.h>
 #include "TimeoutTimer.h"
 #define BUFSIZE 20
+#define GREEN 23
 
 /*   We'll use the ArduinoBLE library to simulate a basic UART connection 
  *   following this UART service specification by Nordic Semiconductors. 
@@ -57,6 +58,7 @@ void setup()
   pinMode(decPin, INPUT);    // declare pushbutton as input
   pinMode(incPin, INPUT);
   pinMode(onOffPin, INPUT);
+  pinMode(GREEN, OUTPUT);
 }
 
 void loop() 
@@ -65,10 +67,11 @@ void loop()
   BLEDevice central = BLE.central();
   String newState = ""; //Initialize variable to hold the new state (on/off, increment or decrement)
   String currentState = "s0";//0 for off, 1 for on
+  digitalWrite(GREEN, HIGH);
   bool toggleWasDown = false;
   bool incWasDown = false;
   bool decWasDown = false;
-  int intensity = 0;//Intensity on a scale of 1-10 for dimness of the lights
+  int intensity = 5;//Intensity on a scale of 1-10 for dimness of the lights
   // If a central device is connected to the peripheral...
   if ( central )
   {
@@ -88,9 +91,12 @@ void loop()
         Serial.println("ON/OFF Button Pressed");
         if(currentState == "s0"){
           currentState = "s1";
+          intensity = 5;
+          digitalWrite(GREEN, LOW);
         }
         else{
           currentState = "s0";
+          digitalWrite(GREEN, HIGH);
           intensity = 0;
         }
         sendToggle(currentState);
@@ -107,6 +113,7 @@ void loop()
           intensity--;
           if(intensity == 0){
             currentState = "s0";
+            digitalWrite(GREEN, HIGH);
             sendToggle(currentState);
           }
         }
@@ -128,19 +135,24 @@ void loop()
         else if(newState.equals("s0")){
           if(currentState == "s0"){//If the light was off
             currentState = "s1"; //Light is now on
+            intensity = 5;
+            digitalWrite(GREEN, LOW);
           }
           else if(currentState == "s1"){//if the light was on
             currentState = "s0"; //Light is now off
+            digitalWrite(GREEN, HIGH);
             intensity = 0;
           }
-          sendToggle(currentState);
+          char sendArray[BUFSIZE];
+          currentState.toCharArray(sendArray,BUFSIZE);
+          rxChar.writeValue(sendArray);
+          Serial.println(sendArray);
         }
         else if(newState.equals("s1")){
           //increment
           if(intensity < 10){
             intensity++;
           }
-          Serial.println("New Intensity: "+intensity);
         }
         else if(newState.equals("s2")){
           //decrement
@@ -148,10 +160,10 @@ void loop()
             intensity--;
             if(intensity == 0){
               currentState = "s0";
+              digitalWrite(GREEN, HIGH);
               sendToggle(currentState);
             }
           }
-          Serial.println("New Intensity: "+intensity);
         }
       }
     }
